@@ -11,7 +11,7 @@ const stage = new Konva.Stage({
 const layer = new Konva.Layer();
 stage.add(layer);
 
-const MAX_POINTS = 10;
+const MAX_POINTS = 11;
 let polyline // La polyline en cours de construction;
 
 const polylineMachine = createMachine(
@@ -21,11 +21,52 @@ const polylineMachine = createMachine(
         initial: "idle",
         states : {
             idle: {
-            }
-        }
-    },
+                on: {
+                    MOUSECLICK: {
+                      target: "drawing",
+                      actions: ["createLine"],
+                    },
+                  },
+                },
+                drawing: {
+                  on: {
+                    MOUSEMOVE: [
+                      {
+                        target: "drawing",
+                        cond: "pasPlein",
+                        actions: ["setLastPoint"],
+                      },
+                      {
+                        target: "idle",
+                        actions: ["saveLine"],
+                      },
+                    ],
+                    MOUSECLICK: {
+                      target: "drawing",
+                      actions: ["addPoint"],
+                    },
+                    Backspace: {
+                      target: "drawing",
+                      cond: "plusDeDeuxPoints",
+                      actions: ["removeLastPoint"],
+                    },
+                    Enter: {
+                      target: "idle",
+                      cond: "plusDeDeuxPoints",
+                      actions: ["saveLine"],
+                    },
+                    Escape: {
+                      target: "idle",
+                      actions: ["abandon"],
+                    },
+                  },
+                },
+              },
+          },
+ 
+     {      
     // Quelques actions et guardes que vous pouvez utiliser dans votre machine
-    {
+    
         actions: {
             // Créer une nouvelle polyline
             createLine: (context, event) => {
@@ -66,8 +107,7 @@ const polylineMachine = createMachine(
             },
             // Abandonner le tracé de la polyline
             abandon: (context, event) => {
-                // Supprimer la variable polyline :
-                
+                polyline.remove();
             },
             // Supprimer le dernier point de la polyline
             removeLastPoint: (context, event) => {
@@ -82,14 +122,12 @@ const polylineMachine = createMachine(
         guards: {
             // On peut encore ajouter un point
             pasPlein: (context, event) => {
-                // Retourner vrai si la polyline a moins de 10 points
-                // attention : dans le tableau de points, chaque point est représenté par 2 valeurs (coordonnées x et y)
-                
+                return polyline.points().length < MAX_POINTS * 2;
             },
             // On peut enlever un point
             plusDeDeuxPoints: (context, event) => {
                 // Deux coordonnées pour chaque point, plus le point provisoire
-                return polyline.points().length > 6;
+                return polyline.points().length > 4;
             },
         },
     }
@@ -101,6 +139,7 @@ const polylineService = interpret(polylineMachine)
         console.log("Current state:", state.value);
     })
     .start();
+    +
 // On envoie les événements à la machine
 stage.on("click", () => {
     polylineService.send("MOUSECLICK");
